@@ -14,12 +14,6 @@ The application is a Flask web application containerized with Docker, pushed to 
 
 ---
 
-# 🏗 Architecture
-
-![Architecture](images/project-flow.png)
-
----
-
 # 🚀 Technology Stack
 
 | Technology | Purpose |
