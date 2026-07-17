@@ -2,258 +2,163 @@ pipeline {
 
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+    }
+
     environment {
-
-        AWS_REGION = "ap-south-1"
-
-        CLUSTER_NAME = "devops-eks-cluster"
-
-        AWS_ACCOUNT_ID = "123456789012"
-
-        ECR_REPOSITORY = "flask-app"
-
+        AWS_REGION = 'ap-south-1'
+        CLUSTER_NAME = 'devops-eks-cluster'
+        AWS_ACCOUNT_ID = '186050466008'
+        ECR_REPOSITORY = 'flask-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
 
         AWS_ACCESS_KEY_ID = credentials('aws-access-key')
-
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
-
     }
 
     stages {
 
         stage('Git Checkout') {
-
             steps {
-
                 git branch: 'main',
-                    credentialsId: 'github-creds',
-                    url: 'https://github.com/YOUR_USERNAME/DevOps-Assignment.git'
-
+                    url: 'https://github.com/manjunathalokesh43-a11y/DevOps-Assignment.git'
+                    // credentialsId: 'github-creds'   // Uncomment if repository is private
             }
-
         }
 
         stage('Terraform Init') {
-
             steps {
-
                 dir('terraform') {
-
-                    sh 'terraform init'
-
+                    bat 'terraform init'
                 }
-
             }
-
         }
 
         stage('Terraform Format') {
-
             steps {
-
                 dir('terraform') {
-
-                    sh 'terraform fmt'
-
+                    bat 'terraform fmt'
                 }
-
             }
-
         }
 
         stage('Terraform Validate') {
-
             steps {
-
                 dir('terraform') {
-
-                    sh 'terraform validate'
-
+                    bat 'terraform validate'
                 }
-
             }
-
         }
 
         stage('Terraform Plan') {
-
             steps {
-
                 dir('terraform') {
-
-                    sh 'terraform plan -out=tfplan'
-
+                    bat 'terraform plan -out=tfplan'
                 }
-
             }
-
         }
 
         stage('Terraform Apply') {
-
             steps {
-
                 dir('terraform') {
-
-                    sh 'terraform apply -auto-approve tfplan'
-
+                    bat 'terraform apply -auto-approve tfplan'
                 }
-
             }
-
         }
 
         stage('Update Kubeconfig') {
-
             steps {
-
-                sh """
-
-                aws eks update-kubeconfig \
-                --region ${AWS_REGION} \
-                --name ${CLUSTER_NAME}
-
-                """
-
+                bat '''
+                aws eks update-kubeconfig --region %AWS_REGION% --name %CLUSTER_NAME%
+                '''
             }
+        }
 
+        stage('Verify EKS Nodes') {
+            steps {
+                bat 'kubectl get nodes'
+            }
         }
 
         stage('Build Docker Image') {
-
             steps {
-
                 dir('app') {
-
-                    sh """
-
-                    docker build \
-                    -t ${ECR_REPOSITORY}:${IMAGE_TAG} .
-
-                    """
-
+                    bat '''
+                    docker build -t %ECR_REPOSITORY%:%IMAGE_TAG% .
+                    '''
                 }
-
             }
-
         }
 
         stage('Login to Amazon ECR') {
-
             steps {
-
-                sh """
-
-                aws ecr get-login-password \
-                --region ${AWS_REGION} |
-
-                docker login \
-                --username AWS \
-                --password-stdin \
-                ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-
-                """
-
+                bat '''
+                aws ecr get-login-password --region %AWS_REGION% > password.txt
+                docker login --username AWS --password-stdin %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com < password.txt
+                del password.txt
+                '''
             }
-
         }
 
         stage('Tag Docker Image') {
-
             steps {
-
-                sh """
-
-                docker tag \
-                ${ECR_REPOSITORY}:${IMAGE_TAG} \
-                ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-                """
-
+                bat '''
+                docker tag %ECR_REPOSITORY%:%IMAGE_TAG% %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPOSITORY%:%IMAGE_TAG%
+                '''
             }
-
         }
 
         stage('Push Docker Image') {
-
             steps {
-
-                sh """
-
-                docker push \
-                ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-                """
-
+                bat '''
+                docker push %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPOSITORY%:%IMAGE_TAG%
+                '''
             }
-
         }
 
-        stage('Helm Upgrade') {
-
+        stage('Deploy using Helm') {
             steps {
-
-                sh """
-
-                helm upgrade \
-                --install flask-app \
-                helm/sample-app \
-                --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY} \
-                --set image.tag=${IMAGE_TAG}
-
-                """
-
+                bat '''
+                helm upgrade --install flask-app helm/sample-app ^
+                --set image.repository=%AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPOSITORY% ^
+                --set image.tag=%IMAGE_TAG%
+                '''
             }
-
         }
 
-        stage('Verify Kubernetes') {
-
+        stage('Verify Deployment') {
             steps {
-
-                sh "kubectl get nodes"
-
-                sh "kubectl get pods"
-
-                sh "kubectl get svc"
-
-                sh "kubectl get ingress"
-
+                bat 'kubectl get nodes'
+                bat 'kubectl get pods'
+                bat 'kubectl get svc'
+                bat 'kubectl get ingress'
             }
-
         }
-
     }
 
     post {
 
         success {
-
-            echo "======================================"
-
-            echo "Infrastructure Created Successfully"
-
-            echo "Docker Image Pushed Successfully"
-
-            echo "Application Deployed Successfully"
-
-            echo "======================================"
-
+            echo '============================================='
+            echo 'Terraform Infrastructure Created Successfully'
+            echo 'Amazon EKS Cluster Ready'
+            echo 'Docker Image Built and Pushed to Amazon ECR'
+            echo 'Helm Application Deployed Successfully'
+            echo 'Pipeline Completed Successfully'
+            echo '============================================='
         }
 
         failure {
-
-            echo "Pipeline Failed"
-
+            echo '============================================='
+            echo 'Pipeline Failed'
+            echo 'Check the failed stage in Console Output'
+            echo '============================================='
         }
 
         always {
-
             cleanWs()
-
         }
-
     }
-
 }
