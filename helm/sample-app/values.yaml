@@ -1,0 +1,44 @@
+replicaCount: 2
+
+image:
+  repository: 186050466008.dkr.ecr.ap-south-1.amazonaws.com/flask-app
+  tag: v1
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+
+ingress:
+  enabled: true
+  className: nginx
+
+
+  path: /
+
+config:
+
+  APP_NAME: Flask-App
+
+  APP_VERSION: "1.0"
+
+  ENVIRONMENT: Production
+
+resources:
+
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+storage:
+
+  size: 1Gi
+
+volume:
+
+  mountPath: /data

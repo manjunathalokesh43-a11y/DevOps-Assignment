@@ -1,0 +1,15 @@
+apiVersion: v1
+
+kind: ConfigMap
+
+metadata:
+
+  name: flask-config
+
+data:
+
+  APP_NAME: "{{ .Values.config.APP_NAME }}"
+
+  APP_VERSION: "{{ .Values.config.APP_VERSION }}"
+
+  ENVIRONMENT: "{{ .Values.config.ENVIRONMENT }}"

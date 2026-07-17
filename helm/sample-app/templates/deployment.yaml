@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: flask-app
+
+spec:
+
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+
+    matchLabels:
+
+      app: flask-app
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: flask-app
+
+    spec:
+
+      containers:
+
+      - name: flask-app
+
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        ports:
+
+        - containerPort: 5000
+
+        envFrom:
+
+        - configMapRef:
+
+            name: flask-config
+
+        volumeMounts:
+
+        - name: flask-storage
+
+          mountPath: {{ .Values.volume.mountPath }}
+
+        livenessProbe:
+
+          httpGet:
+
+            path: /health
+
+            port: 5000
+
+          initialDelaySeconds: 15
+
+          periodSeconds: 10
+
+        readinessProbe:
+
+          httpGet:
+
+            path: /ready
+
+            port: 5000
+
+          initialDelaySeconds: 10
+
+          periodSeconds: 5
+
+        resources:
+
+{{ toYaml .Values.resources | indent 10 }}
+
+      volumes:
+
+      - name: flask-storage
+
+        persistentVolumeClaim:
+
+          claimName: flask-pvc
